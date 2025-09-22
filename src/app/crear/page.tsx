@@ -4,9 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { userSchema } from "../../validations/userSchema";
-import { useAuthors } from "@/hooks/authorsHooks";
+import { useAuthors } from "../../hooks/authorsHooks";
 
-// ✅ inferir tipo desde el schema
 type UserFormData = z.infer<typeof userSchema>;
 
 export default function CrearPage() {
@@ -23,7 +22,7 @@ export default function CrearPage() {
 
   const onSubmit = async (data: UserFormData) => {
     try {
-      await createAuthor(data); // 🔗 usa la función del hook
+      await createAuthor(data); 
       alert("Author created successfully!");
       reset();
     } catch (err) {
