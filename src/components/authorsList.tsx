@@ -1,13 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useAuthors, Author } from "@/hooks/authorsHooks";
-import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useAuthorsStore, Author } from "../hooks/authorsHooks";
 
 export default function AuthorsList() {
-  const { authors, loading, error, updateAuthor, deleteAuthor } = useAuthors();
+  const authors = useAuthorsStore((state) => state.authors);
+  const loading = useAuthorsStore((state) => state.loading);
+  const error = useAuthorsStore((state) => state.error);
+  const updateAuthor = useAuthorsStore((state) => state.updateAuthor);
+  const deleteAuthor = useAuthorsStore((state) => state.deleteAuthor);
+  const loadAuthors = useAuthorsStore((state) => state.loadAuthors);
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<Author>>({});
+
+  useEffect(() => {
+    loadAuthors();
+  }, [loadAuthors]);
 
   if (loading) return <p className="text-gray-600">Cargando autores...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
@@ -47,7 +56,6 @@ export default function AuthorsList() {
           key={author.id}
           className="flex gap-6 border border-gray-300 rounded-xl p-6 shadow-sm"
         >
-          {/* Imagen del autor */}
           <div className="flex-shrink-0">
             <img
               src={author.image}
@@ -58,7 +66,6 @@ export default function AuthorsList() {
             />
           </div>
 
-          {/* Info o Formulario */}
           <div className="flex flex-col flex-1">
             {editingId === author.id ? (
               <>
@@ -115,7 +122,6 @@ export default function AuthorsList() {
                 </p>
                 <p className="text-gray-700 mb-4">{author.description}</p>
 
-                {/* Libros */}
                 {author.books?.length > 0 && (
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">

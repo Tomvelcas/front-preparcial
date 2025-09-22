@@ -4,12 +4,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { userSchema } from "../../validations/userSchema";
-import { useAuthors } from "../../hooks/authorsHooks";
+import { useAuthorsStore } from "../../hooks/authorsHooks";
 
 type UserFormData = z.infer<typeof userSchema>;
 
 export default function CrearPage() {
-  const { createAuthor } = useAuthors();
+  const createAuthor = useAuthorsStore((state) => state.createAuthor);
 
   const {
     register,
@@ -22,7 +22,7 @@ export default function CrearPage() {
 
   const onSubmit = async (data: UserFormData) => {
     try {
-      await createAuthor(data); 
+      await createAuthor(data);
       alert("Author created successfully!");
       reset();
     } catch (err) {

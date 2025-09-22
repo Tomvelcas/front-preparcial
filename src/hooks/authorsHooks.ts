@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { create } from "zustand";
+
+export interface Book {
+  name: string;
+  isbn: string;
+  image: string;
+  publishingDate: string; 
+  description: string;
+}
 
 export interface Author {
   id: number;
@@ -11,43 +19,41 @@ export interface Author {
   books: Book[];
 }
 
-export interface Book {
-  name: string;
-  isbn: string;
-  image: string;
-  publishingDate: string; 
-  description: string;
-
+interface AuthorState {
+  authors: Author[];
+  loading: boolean;
+  error: string | null;
+  loadAuthors: () => Promise<void>;
+  createAuthor: (author: Omit<Author, "id" | "books">) => Promise<void>;
+  updateAuthor: (id: number, author: Partial<Omit<Author, "id" | "books">>) => Promise<void>;
+  deleteAuthor: (id: number) => Promise<void>;
 }
 
-export function useAuthors() {
-  const [authors, setAuthors] = useState<Author[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const useAuthorsStore = create<AuthorState>((set) => ({
+  authors: [],
+  loading: false,
+  error: null,
 
   // cargar autores desde la API
-  const loadAuthors = async () => {
+  loadAuthors: async () => {
+    set({ loading: true, error: null });
     try {
-      setLoading(true);
-      setError(null);
-
       const res = await fetch("http://127.0.0.1:8080/api/authors");
       if (!res.ok) throw new Error("Error al cargar autores");
 
       const data: Author[] = await res.json();
-      setAuthors(data);
+      set({ authors: data, loading: false });
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message ?? "Error desconocido");
+        set({ error: err.message ?? "Error desconocido", loading: false });
       } else {
-        setError("Error desconocido");
+        set({ error: "Error desconocido", loading: false });
       }
-    } finally {
-      setLoading(false);
     }
-  };
-  // crear autor (POST al backend)
-  const createAuthor = async (author: Omit<Author, "id" | "books">) => {
+  },
+
+  // crear autor
+  createAuthor: async (author) => {
     try {
       const res = await fetch("http://127.0.0.1:8080/api/authors", {
         method: "POST",
@@ -58,16 +64,14 @@ export function useAuthors() {
       if (!res.ok) throw new Error("Error al crear autor");
 
       const newAuthor: Author = await res.json();
-
-      // actualizar el estado local sin esperar a recargar todo
-      setAuthors((prev) => [...prev, newAuthor]);
+      set((state) => ({ authors: [...state.authors, newAuthor] }));
     } catch (err) {
       console.error(err);
     }
-  };
+  },
 
-  // actualizar autor (PUT al backend)
-  const updateAuthor = async (id: number, author: Partial<Omit<Author, "id" | "books">>) => {
+  // actualizar autor
+  updateAuthor: async (id, author) => {
     try {
       const res = await fetch(`http://127.0.0.1:8080/api/authors/${id}`, {
         method: "PUT",
@@ -79,16 +83,16 @@ export function useAuthors() {
 
       const updatedAuthor: Author = await res.json();
 
-      // actualizar el estado local sin esperar a recargar todo
-      setAuthors((prev) => prev.map((a) => (a.id === id ? updatedAuthor : a)));
+      set((state) => ({
+        authors: state.authors.map((a) => (a.id === id ? updatedAuthor : a)),
+      }));
     } catch (err) {
       console.error(err);
     }
-  };
-
+  },
 
   // eliminar autor
-  const deleteAuthor = async (id: number) => {
+  deleteAuthor: async (id) => {
     try {
       const res = await fetch(`http://127.0.0.1:8080/api/authors/${id}`, {
         method: "DELETE",
@@ -96,27 +100,11 @@ export function useAuthors() {
 
       if (!res.ok) throw new Error("Error al eliminar autor");
 
-      // actualizar estado local quitando el autor eliminado
-      setAuthors((prev) => prev.filter((a) => a.id !== id));
+      set((state) => ({
+        authors: state.authors.filter((a) => a.id !== id),
+      }));
     } catch (err) {
       console.error(err);
     }
-  };
-
-
-  //  cargar al montar
-  useEffect(() => {
-    loadAuthors();
-  }, []);
-
-  return {
-    authors,
-    loading,
-    error,
-    reload: loadAuthors, 
-    createAuthor,
-    updateAuthor,
-    deleteAuthor
-
-  };
-}
+  },
+}));
