@@ -3,11 +3,32 @@
 import { create } from "zustand";
 
 export interface Book {
+  id?: number;
   name: string;
   isbn: string;
   image: string;
-  publishingDate: string; 
+  publishingDate: string;
   description: string;
+  editorial?: Editorial;
+}
+
+export interface Editorial {
+  id: number;
+  name: string;
+}
+
+export interface Organization {
+  id: number;
+  name: string;
+  tipo: string;
+}
+
+export interface Prize {
+  id?: number;
+  premiationDate: string;
+  name: string;
+  description: string;
+  organization: Organization;
 }
 
 export interface Author {
@@ -17,15 +38,34 @@ export interface Author {
   description: string;
   image: string;
   books: Book[];
+  prizes: Prize[];
 }
+
+const DEFAULT_ORGANIZATION: Organization = {
+  id: 1000,
+  name: "org1",
+  tipo: "PUBLICA",
+};
+
+const DEFAULT_EDITORIAL: Editorial = {
+  id: 1000,
+  name: "Editorial Genérica",
+};
 
 interface AuthorState {
   authors: Author[];
   loading: boolean;
   error: string | null;
   loadAuthors: () => Promise<void>;
-  createAuthor: (author: Omit<Author, "id" | "books">) => Promise<void>;
-  updateAuthor: (id: number, author: Partial<Omit<Author, "id" | "books">>) => Promise<void>;
+  createAuthor: (
+    author: Omit<Author, "id" | "books" | "prizes">,
+    book: Omit<Book, "id" | "editorial">,
+    prize: Omit<Prize, "id" | "organization">
+  ) => Promise<void>;
+  updateAuthor: (
+    id: number,
+    author: Partial<Omit<Author, "id" | "books" | "prizes">>
+  ) => Promise<void>;
   deleteAuthor: (id: number) => Promise<void>;
 }
 
@@ -52,19 +92,57 @@ export const useAuthorsStore = create<AuthorState>((set) => ({
     }
   },
 
-  // crear autor
-  createAuthor: async (author) => {
+  // crear autor con libro y premio
+  createAuthor: async (author, book, prize) => {
     try {
-      const res = await fetch("http://127.0.0.1:8080/api/authors", {
+      // 1. Crear autor
+      const resAuthor = await fetch("http://127.0.0.1:8080/api/authors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(author),
       });
+      if (!resAuthor.ok) throw new Error("Error al crear autor");
+      const newAuthor: Author = await resAuthor.json();
 
-      if (!res.ok) throw new Error("Error al crear autor");
+      // 2. Crear libro (con editorial fija)
+      const bookPayload = { ...book, editorial: DEFAULT_EDITORIAL };
+      const resBook = await fetch("http://127.0.0.1:8080/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookPayload),
+      });
+      if (!resBook.ok) throw new Error("Error al crear libro");
+      const newBook: Book = await resBook.json();
 
-      const newAuthor: Author = await res.json();
-      set((state) => ({ authors: [...state.authors, newAuthor] }));
+      // 3. Asociar libro al autor
+      await fetch(
+        `http://127.0.0.1:8080/api/authors/${newAuthor.id}/books/${newBook.id}`,
+        { method: "POST" }
+      );
+
+      // 4. Crear premio (con organización fija)
+      const prizePayload = { ...prize, organization: DEFAULT_ORGANIZATION };
+      const resPrize = await fetch("http://127.0.0.1:8080/api/prizes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prizePayload),
+      });
+      if (!resPrize.ok) throw new Error("Error al crear premio");
+      const newPrize: Prize = await resPrize.json();
+
+      // 5. Asociar premio al autor
+      await fetch(
+        `http://127.0.0.1:8080/api/prizes/${newPrize.id}/author/${newAuthor.id}`,
+        { method: "POST" }
+      );
+
+      // 6. Actualizar estado global
+      set((state) => ({
+        authors: [
+          ...state.authors,
+          { ...newAuthor, books: [newBook], prizes: [newPrize] },
+        ],
+      }));
     } catch (err) {
       console.error(err);
     }
