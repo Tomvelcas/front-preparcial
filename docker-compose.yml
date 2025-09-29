@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  frontend:
+    build:
+      context: .    # Construye el Dockerfile que está en front-preparcial
+    container_name: nextjs_app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      # URL del backend accesible desde dentro de la red de Docker
+      - NEXT_PUBLIC_API_URL=http://backend:8080/api
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ../bookstore-back   # Ruta relativa desde front-preparcial
+    container_name: backend_app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
